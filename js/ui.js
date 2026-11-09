@@ -112,6 +112,20 @@ export function promptSheet({ title, label, placeholder = '', confirmLabel = 'Ac
   });
 }
 
+// Tema de la pantalla: 'auto' (como el sistema), 'light' o 'dark'. Se guarda solo en este dispositivo.
+const THEME_KEY = 'tatami-theme';
+export function getTheme() {
+  try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch { return 'auto'; }
+}
+export function setTheme(theme) {
+  try {
+    if (theme === 'auto') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, theme);
+  } catch { /* sin almacenamiento: se aplica solo mientras esté abierta */ }
+  if (theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+}
+
 let toastTimer = null;
 export function toast(message) {
   const el = document.getElementById('toast');

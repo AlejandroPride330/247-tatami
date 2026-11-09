@@ -4,7 +4,7 @@ import { getState, update, replace, find, isValid, migrate, defaultIcon } from '
 import { planSummary, groupLabel } from '../logic.js';
 import { createSeed } from '../seed.js';
 import { esc, eur, todayISO, scheduleText, WEEK, uid } from '../util.js';
-import { openSheet, confirmSheet, toast, dot } from '../ui.js';
+import { openSheet, confirmSheet, toast, dot, getTheme, setTheme, requestRender } from '../ui.js';
 
 const COLORS = ['#b91c1c', '#1d4ed8', '#15803d', '#a16207', '#7c3aed', '#0e7490', '#be185d', '#4b5563'];
 const ICONS = ['🥋', '🤼', '🥊', '💪', '🦵', '👊', '🏆', '🤸', '🧘', '🏋️', '🔥', '⚡', '🐍', '🐯', '🧒', '⭐'];
@@ -15,6 +15,16 @@ export function render() {
     <section class="card">
       <h3 class="card-title">Gimnasio</h3>
       <label class="field"><span>Nombre</span><input type="text" data-gym value="${esc(s.gymName)}"></label>
+    </section>
+
+    <section class="card">
+      <h3 class="card-title">Pantalla</h3>
+      <div class="field"><span>Modo oscuro</span>
+        <div class="seg">${[['light', '☀️ Claro'], ['dark', '🌙 Oscuro'], ['auto', 'Automático']].map(([k, label]) => `
+          <button type="button" class="seg-btn ${getTheme() === k ? 'on' : ''}" data-theme-opt="${k}">${label}</button>`).join('')}
+        </div>
+        <span class="hint">«Automático» usa el modo del dispositivo. Solo afecta a este dispositivo.</span>
+      </div>
     </section>
 
     <section class="card">
@@ -87,6 +97,13 @@ export function bind(root) {
     if (t.matches('[data-import]') && t.files[0]) importBackup(t.files[0]);
   };
   root.onclick = async (e) => {
+    const theme = e.target.closest('[data-theme-opt]')?.dataset.themeOpt;
+    if (theme) {
+      setTheme(theme);
+      requestRender();
+      toast({ light: 'Modo claro', dark: 'Modo oscuro', auto: 'Como el dispositivo' }[theme]);
+      return;
+    }
     const el = e.target.closest('[data-act],[data-disc],[data-group],[data-new-group],[data-plan]');
     if (!el) return;
     const { act } = el.dataset;

@@ -24,8 +24,9 @@
   color-scheme: light;
 }
 
+/* Modo oscuro: en «Automático» sigue al sistema; en Ajustes se puede forzar claro u oscuro. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #12100f;
     --card: #1e1b19;
     --text: #f2efeb;
@@ -47,6 +48,29 @@
     --shadow: none;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #12100f;
+  --card: #1e1b19;
+  --text: #f2efeb;
+  --muted: #a8a29e;
+  --line: #34302c;
+  --accent: #ef4444;
+  --accent-ink: #ffffff;
+  --accent-soft: #3a1616;
+  --ok: #4ade80;
+  --ok-bg: #12301c;
+  --bad: #f87171;
+  --bad-bg: #3a1616;
+  --info: #93c5fd;
+  --info-bg: #172447;
+  --idle: #a8a29e;
+  --idle-bg: #2a2623;
+  --warn-bg: #3a2a0c;
+  --warn: #fcd34d;
+  --shadow: none;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }

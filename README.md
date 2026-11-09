@@ -25,7 +25,7 @@ quien no ha venido no debe nada. Cada mes empieza de cero.
   el dinero, y debajo los alumnos con su foto.
 - **Alumnos**: alta, ficha, historial de cobros y asistencias, anular cobros (nunca se borran).
 - **Caja**: efectivo del mes por tarifa y movimientos día a día.
-- **Ajustes**: disciplinas (con su icono), clases con su horario, tarifas, datos de protección de datos y copias de seguridad.
+- **Ajustes**: modo claro u oscuro, disciplinas (con su icono), clases con su horario, tarifas, datos de protección de datos y copias de seguridad.
 
 ## Alta de alumnos
 

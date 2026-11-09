@@ -14,6 +14,10 @@
   <meta name="apple-mobile-web-app-title" content="Tatami">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Tema elegido en Ajustes (claro u oscuro). Sin elegir, sigue al del sistema.
+    try { const t = localStorage.getItem('tatami-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
 </head>
 <body>
   <header class="topbar">
