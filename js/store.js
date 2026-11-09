@@ -77,7 +77,19 @@ export function defaultIcon(name = '') {
 // v3 → v4: ya no hay socios (la app vive en una sola tablet), cada disciplina tiene icono
 // y el nombre del alumno se separa en nombre y apellidos.
 export function migrate(s) {
-  if (!s || s.version !== 3) return s;
+  if (!s) return s;
+  if (s.version === 3) fromV3(s);
+  // Datos del padre, madre o tutor dentro de la ficha (menores). Si ya firmó un tutor, se aprovecha su nombre.
+  if (s.version === DATA_VERSION) {
+    s.students?.forEach((st) => {
+      if (st.guardian !== undefined) return;
+      st.guardian = st.consent?.signer === 'tutor' ? { name: st.consent.signerName || '', relation: st.consent.relation || 'tutor', phone: '' } : null;
+    });
+  }
+  return s;
+}
+
+function fromV3(s) {
   delete s.owners;
   delete s.currentOwnerId;
   s.attendance?.forEach((a) => { delete a.by; });
@@ -94,7 +106,6 @@ export function migrate(s) {
   });
   s.privacy = s.privacy || { holder: '', contact: '' };
   s.version = 4;
-  return s;
 }
 
 export const find = (list, id) => state[list].find((x) => x.id === id);

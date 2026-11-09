@@ -6,7 +6,7 @@ import { analysisFor, monthStatus, activeBono, activeDisciplines, activeGroups, 
 import { esc, eur, todayISO, monthOf, addMonths, monthShort, monthLabel, dayLabel, shortDate, normalize, byName, uid } from '../util.js';
 import { openSheet, toast, badge, empty, avatar, requestRender } from '../ui.js';
 import { takePhoto, signaturePad } from '../media.js';
-import { consentText, CONSENT_VERSION } from '../privacy.js';
+import { consentText, CONSENT_VERSION, RELATIONS } from '../privacy.js';
 import { openCobrar, voidPayment } from './cobrar.js';
 
 const ui = { q: '', filter: 'activo' };
@@ -87,9 +87,16 @@ export function openFicha(studentId) {
           <div class="ficha-top">
             ${st.status === 'baja' ? '<span class="tag">Baja</span>' : badge(ms)}
             <span class="sub">${esc(studentGroupsText(st))}</span>
-            ${st.phone ? `<a class="sub phone" href="tel:${esc(st.phone.replace(/[^\d+]/g, ''))}">📞 ${esc(st.phone)}</a>` : ''}
+            ${st.phone ? `<span class="sub">${telLink(st.phone)}</span>` : ''}
           </div>
         </div>
+        ${st.guardian ? `
+          <div class="guardian-card">
+            <span class="tag">Menor</span>
+            <span class="grow"><span class="sub">${esc(RELATIONS[st.guardian.relation] || 'Tutor legal')}</span>
+              <span class="name">${esc(st.guardian.name || 'Sin nombre')}</span></span>
+            ${st.guardian.phone ? telLink(st.guardian.phone) : '<span class="sub">Sin teléfono</span>'}
+          </div>` : ''}
         ${st.consent
           ? `<div class="consent-ok"><span>🛡️ Protección de datos firmada el ${esc(signedLabel(st.consent))}</span>
               <button type="button" class="btn btn-small btn-ghost" data-act="consent">Ver</button></div>`
@@ -159,7 +166,7 @@ function openConsent(studentId) {
       </div>
       <div class="card">
         <div class="line"><span>Alumno</span><strong>${esc(st.name)}</strong></div>
-        <div class="line"><span>Firma</span><strong>${c.signer === 'tutor' ? `${esc(c.signerName)} (tutor legal)` : 'El propio alumno'}</strong></div>
+        <div class="line"><span>Firma</span><strong>${c.signer === 'tutor' ? `${esc(c.signerName)} (${esc(RELATIONS[c.relation] || 'Tutor legal')})` : 'El propio alumno'}</strong></div>
         <div class="line"><span>Fecha</span><strong>${esc(signedLabel(c))}</strong></div>
         <img class="signature-img" src="${esc(c.signature)}" alt="Firma">
       </div>`,
@@ -168,32 +175,57 @@ function openConsent(studentId) {
 
 // --- Alta y edición ---
 
+const KIDS = /kids|niñ|infantil|peques/i;
+const digits = (v) => String(v || '').replace(/\D/g, '').length;
+const telLink = (phone) => `<a class="phone" href="tel:${esc(String(phone).replace(/[^\d+]/g, ''))}">📞 ${esc(phone)}</a>`;
+
 export function openEditStudent(studentId = null, { presetGroupId = null, presetName = '', onSaved } = {}) {
   const existing = studentId ? find('students', studentId) : null;
   const [pFirst = '', ...pRest] = presetName.trim().split(/\s+/);
+  const g = existing?.guardian || null;
+  // En un alta desde una clase Kids, se da por hecho que es menor.
+  const presetGroup = presetGroupId ? find('groups', presetGroupId) : null;
   const f = existing
     ? {
       firstName: existing.firstName ?? existing.name, lastName1: existing.lastName1 || '', lastName2: existing.lastName2 || '',
       phone: existing.phone || '', photo: existing.photo || null,
       groupIds: new Set(existing.groupIds), planId: existing.planId || '', status: existing.status, notes: existing.notes || '',
+      minor: !!g, gName: g?.name || '', gRelation: g?.relation || 'madre', gPhone: g?.phone || '',
     }
     : {
       firstName: pFirst, lastName1: pRest[0] || '', lastName2: pRest.slice(1).join(' '),
       phone: '', photo: null, groupIds: new Set(presetGroupId ? [presetGroupId] : []), planId: '', status: 'activo', notes: '',
+      minor: KIDS.test(presetGroup?.name || ''), gName: '', gRelation: 'madre', gPhone: '',
     };
   // Autorización: se firma una vez. Si ya está firmada no se vuelve a pedir.
+  // Si es menor firma su padre, madre o tutor; si no, el propio alumno.
   const signed = existing?.consent || null;
-  const c = { accepted: false, signer: 'alumno', signerName: '', signature: null };
+  const c = { accepted: false, signature: null };
   let pad = null;
 
   const readInputs = (body) => {
     body.querySelectorAll('[data-f]').forEach((el) => { f[el.dataset.f] = el.value; });
-    const sn = body.querySelector('[data-c="signerName"]');
-    if (sn) c.signerName = sn.value;
     const ok = body.querySelector('[data-c="accepted"]');
     if (ok) c.accepted = ok.checked;
   };
-  const textNow = () => consentText({ studentName: fullName(f), signer: c.signer, signerName: c.signerName });
+  const textNow = () => consentText({ studentName: fullName(f), signer: f.minor ? 'tutor' : 'alumno', signerName: f.gName, relation: f.gRelation });
+  const relWord = () => ({ madre: 'su madre', padre: 'su padre', tutor: 'su tutor legal' }[f.gRelation] || 'su tutor legal');
+
+  function guardianHTML() {
+    if (!f.minor) return '';
+    return `
+      <div class="guardian">
+        <div class="field"><span>Padre, madre o tutor</span>
+          <div class="seg">${Object.entries(RELATIONS).map(([k, label]) => `
+            <button type="button" class="seg-btn ${f.gRelation === k ? 'on' : ''}" data-rel="${k}">${label}</button>`).join('')}
+          </div>
+        </div>
+        <div class="two">
+          <label class="field"><span>Nombre y apellidos</span><input type="text" data-f="gName" value="${esc(f.gName)}" autocomplete="off" autocapitalize="words"></label>
+          <label class="field"><span>Teléfono</span><input type="tel" data-f="gPhone" value="${esc(f.gPhone)}" inputmode="tel" autocomplete="off" placeholder="600 000 000"></label>
+        </div>
+      </div>`;
+  }
 
   function consentHTML() {
     if (signed) {
@@ -201,18 +233,11 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
         <div class="consent-ok"><span>🛡️ Autorización firmada el ${esc(signedLabel(signed))}${signed.signer === 'tutor' ? ` por ${esc(signed.signerName)}` : ''}</span></div>`;
     }
     return `
-      <div class="field"><span>¿Quién firma?</span>
-        <div class="seg">
-          <button type="button" class="seg-btn ${c.signer === 'alumno' ? 'on' : ''}" data-signer="alumno">El alumno</button>
-          <button type="button" class="seg-btn ${c.signer === 'tutor' ? 'on' : ''}" data-signer="tutor">Padre, madre o tutor</button>
-        </div>
-        <span class="hint">Si el alumno tiene menos de 14 años, firma su padre, madre o tutor legal.</span>
-      </div>
-      ${c.signer === 'tutor' ? `<label class="field"><span>Nombre y apellidos del padre, madre o tutor</span><input type="text" data-c="signerName" value="${esc(c.signerName)}" autocomplete="off"></label>` : ''}
+      <p class="hint">${f.minor ? `Como es menor de edad, firma ${relWord()}.` : 'Firma el propio alumno. Si es menor de edad, marca «Sí» arriba y firmará su padre, madre o tutor.'}</p>
       <div class="consent-doc" data-consent-text>${textNow().map((p) => `<p>${esc(p)}</p>`).join('')}</div>
       <label class="check-line consent-check"><input type="checkbox" data-c="accepted" ${c.accepted ? 'checked' : ''}>
-        <span>He leído la información anterior y <strong>autorizo</strong> el tratamiento de ${c.signer === 'tutor' ? 'los datos personales del alumno' : 'mis datos personales'}.</span></label>
-      <div class="field"><span>Firma${c.signer === 'tutor' ? ' del padre, madre o tutor' : ' del alumno'}</span>
+        <span>He leído la información anterior y <strong>autorizo</strong> el tratamiento de ${f.minor ? 'los datos personales del alumno y los míos' : 'mis datos personales'}.</span></label>
+      <div class="field"><span>Firma ${f.minor ? `de ${relWord()}` : 'del alumno'}</span>
         <div class="sign-box">
           <canvas class="sign-pad" data-sign aria-label="Zona para firmar con el dedo"></canvas>
           <span class="sign-line" aria-hidden="true">Firme aquí con el dedo · ${shortDate(todayISO())}/${todayISO().slice(0, 4)}</span>
@@ -227,7 +252,7 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
       const groups = activeGroups();
       const plans = activePlans();
       // Si tiene una clase archivada, la seguimos mostrando para no perderla al guardar.
-      const extra = [...f.groupIds].map((id) => find('groups', id)).filter((g) => g && !groups.includes(g));
+      const extra = [...f.groupIds].map((id) => find('groups', id)).filter((x) => x && !groups.includes(x));
       return `
         <h3 class="section-title">Datos personales</h3>
         <div class="alta-top">
@@ -241,19 +266,26 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
               <label class="field"><span>Primer apellido</span><input type="text" data-f="lastName1" value="${esc(f.lastName1)}" autocomplete="off" autocapitalize="words"></label>
               <label class="field"><span>Segundo apellido</span><input type="text" data-f="lastName2" value="${esc(f.lastName2)}" autocomplete="off" autocapitalize="words"></label>
             </div>
-            <label class="field"><span>Teléfono</span><input type="tel" data-f="phone" value="${esc(f.phone)}" inputmode="tel" autocomplete="off" placeholder="600 000 000"></label>
+            <label class="field"><span>${f.minor ? 'Teléfono del alumno (opcional)' : 'Teléfono'}</span><input type="tel" data-f="phone" value="${esc(f.phone)}" inputmode="tel" autocomplete="off" placeholder="600 000 000"></label>
           </div>
         </div>
+        <div class="field"><span>¿Es menor de edad?</span>
+          <div class="seg">
+            <button type="button" class="seg-btn ${f.minor ? '' : 'on'}" data-minor="0">No</button>
+            <button type="button" class="seg-btn ${f.minor ? 'on' : ''}" data-minor="1">Sí</button>
+          </div>
+        </div>
+        ${guardianHTML()}
 
         <h3 class="section-title">Clases y tarifa</h3>
         <div class="field"><span>Clases</span>
           ${activeDisciplines().map((d) => {
-            const gs = groups.filter((g) => g.disciplineId === d.id);
+            const gs = groups.filter((x) => x.disciplineId === d.id);
             if (!gs.length) return '';
-            return `<div class="chips wrap">${gs.map((g) => `
-              <button type="button" class="chip ${f.groupIds.has(g.id) ? 'on' : ''}" data-gid="${g.id}">${esc(groupLabel(g))}</button>`).join('')}</div>`;
+            return `<div class="chips wrap">${gs.map((x) => `
+              <button type="button" class="chip ${f.groupIds.has(x.id) ? 'on' : ''}" data-gid="${x.id}">${esc(groupLabel(x))}</button>`).join('')}</div>`;
           }).join('')}
-          ${extra.length ? `<div class="chips wrap">${extra.map((g) => `<button type="button" class="chip on" data-gid="${g.id}">${esc(groupLabel(g))} (archivada)</button>`).join('')}</div>` : ''}
+          ${extra.length ? `<div class="chips wrap">${extra.map((x) => `<button type="button" class="chip on" data-gid="${x.id}">${esc(groupLabel(x))} (archivada)</button>`).join('')}</div>` : ''}
         </div>
         <label class="field"><span>Tarifa habitual</span>
           <select data-f="planId">
@@ -269,7 +301,7 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
           </div>
           <span class="hint">Las bajas no salen al pasar lista. Si vuelve, al marcarle vuelve a estar activo.</span>
         </div>` : ''}
-        <label class="field"><span>Notas (opcional)</span><textarea data-f="notes" rows="2" placeholder="Ej.: paga su madre">${esc(f.notes)}</textarea></label>
+        <label class="field"><span>Notas (opcional)</span><textarea data-f="notes" rows="2" placeholder="Ej.: hermano de Martina">${esc(f.notes)}</textarea></label>
 
         <h3 class="section-title">Protección de datos</h3>
         ${consentHTML()}
@@ -281,9 +313,9 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
       const canvas = body.querySelector('[data-sign]');
       pad = canvas ? signaturePad(canvas, { initial: c.signature, onChange: (data) => { c.signature = data; } }) : null;
 
-      // El nombre del texto legal se actualiza mientras se escribe.
+      // Los nombres del texto legal se actualizan mientras se escribe.
       body.oninput = (e) => {
-        if (!e.target.matches('[data-f^="firstName"],[data-f^="lastName"],[data-c="signerName"]')) return;
+        if (!e.target.matches('[data-f="firstName"],[data-f^="lastName"],[data-f="gName"]')) return;
         readInputs(body);
         const box = body.querySelector('[data-consent-text]');
         if (box) box.innerHTML = textNow().map((p) => `<p>${esc(p)}</p>`).join('');
@@ -291,14 +323,23 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
       body.onclick = async (e) => {
         const gid = e.target.closest('[data-gid]')?.dataset.gid;
         const status = e.target.closest('[data-status]')?.dataset.status;
-        const signer = e.target.closest('[data-signer]')?.dataset.signer;
+        const minor = e.target.closest('[data-minor]')?.dataset.minor;
+        const rel = e.target.closest('[data-rel]')?.dataset.rel;
         const act = e.target.closest('[data-act]')?.dataset.act;
-        if (gid || status || signer) {
+        if (gid || status || minor || rel) {
           readInputs(body);
-          if (gid) { if (f.groupIds.has(gid)) f.groupIds.delete(gid); else f.groupIds.add(gid); }
+          if (gid) {
+            if (f.groupIds.has(gid)) f.groupIds.delete(gid);
+            else {
+              f.groupIds.add(gid);
+              // Al apuntarle a una clase Kids se marca como menor (si aún no ha firmado nadie).
+              if (!f.minor && !signed && !c.signature && KIDS.test(find('groups', gid)?.name || '')) f.minor = true;
+            }
+          }
           if (status) f.status = status;
-          // Si cambia quién firma, la firma anterior ya no vale.
-          if (signer && signer !== c.signer) { c.signer = signer; c.signature = null; c.accepted = false; }
+          if (rel) f.gRelation = rel;
+          // Si cambia quién firma (alumno o tutor), la firma anterior ya no vale.
+          if (minor && (minor === '1') !== f.minor) { f.minor = minor === '1'; c.signature = null; c.accepted = false; }
           api.refresh();
           return;
         }
@@ -321,21 +362,25 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
     const phone = f.phone.trim();
     if (!firstName) { toast('Escribe el nombre'); return; }
     if (!lastName1) { toast('Escribe el primer apellido'); return; }
-    if (phone.replace(/\D/g, '').length < 9) { toast('Escribe un teléfono válido'); return; }
+    if (f.minor) {
+      if (!f.gName.trim()) { toast('Escribe el nombre del padre, madre o tutor'); return; }
+      if (digits(f.gPhone) < 9) { toast('Escribe el teléfono del padre, madre o tutor'); return; }
+      if (phone && digits(phone) < 9) { toast('Revisa el teléfono del alumno'); return; }
+    } else if (digits(phone) < 9) { toast('Escribe un teléfono válido'); return; }
 
     // Para las altas nuevas la autorización es obligatoria. En alumnos antiguos se puede
     // guardar sin ella (sale el aviso en su ficha), pero si se empieza a firmar, debe completarse.
     let consent = signed;
     const started = c.accepted || c.signature;
     if (!signed && (!existing || started)) {
-      if (c.signer === 'tutor' && !c.signerName.trim()) { toast('Escribe el nombre del padre, madre o tutor'); return; }
       if (!c.accepted) { toast('Falta marcar la casilla de autorización'); return; }
       if (!c.signature) { toast('Falta la firma'); return; }
       consent = {
         version: CONSENT_VERSION,
         signedAt: new Date().toISOString(),
-        signer: c.signer,
-        signerName: c.signer === 'tutor' ? c.signerName.trim() : fullName(f),
+        signer: f.minor ? 'tutor' : 'alumno',
+        signerName: f.minor ? f.gName.trim() : fullName(f),
+        relation: f.minor ? f.gRelation : null,
         text: textNow(),
         signature: c.signature,
       };
@@ -343,6 +388,7 @@ export function openEditStudent(studentId = null, { presetGroupId = null, preset
 
     const data = {
       name: fullName(f), firstName, lastName1, lastName2: f.lastName2.trim(), phone, photo: f.photo,
+      guardian: f.minor ? { name: f.gName.trim(), relation: f.gRelation, phone: f.gPhone.trim() } : null,
       groupIds: [...f.groupIds], planId: f.planId || null, status: f.status, notes: f.notes.trim(), consent,
     };
     let id = studentId;

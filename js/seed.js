@@ -59,6 +59,17 @@ const PEOPLE = [
   ['Emilio Fuentes', ['g_mma'], 'p_mma', 'b'],
 ];
 
+// Padre o madre de los alumnos de Kids: [nombre, parentesco, teléfono]. Todo inventado.
+const GUARDIANS = {
+  'Leo Martín': ['Ana', 'madre', '600 100 201'],
+  'Mateo Sanz': ['Raquel', 'madre', '600 100 202'],
+  'Martina Sanz': ['Raquel', 'madre', '600 100 202'],
+  'Nico Rubio': ['Carlos', 'padre', '600 100 203'],
+  'Bruno Cano': ['Silvia', 'madre', '600 100 204'],
+  'Alba Medina': ['Javier', 'padre', '600 100 205'],
+  'Iker Vidal': ['Laura', 'madre', '600 100 206'],
+};
+
 // Horario de 247 Studio. day: 0 = domingo … 6 = sábado
 const S = (day, start, end) => ({ day, start, end });
 const GROUPS = [
@@ -146,8 +157,11 @@ export function createSeed() {
     const joined = kind === 'n' ? `${months[1]}-0${1 + Math.floor(rnd() * 8)}` : addDays(start, -30 - Math.floor(rnd() * 400));
     const [firstName, lastName1 = '', lastName2 = ''] = name.split(' ');
     // Los alumnos de ejemplo no tienen foto ni firma: así se ve cómo queda un alta pendiente.
+    // Los niños llevan los datos de su padre o madre (inventados).
+    const parent = GUARDIANS[name];
+    const guardian = parent ? { name: `${parent[0]} ${lastName1}`, relation: parent[1], phone: parent[2] } : null;
     students.push({
-      id: sid, name, firstName, lastName1, lastName2, phone: '', photo: null, consent: null,
+      id: sid, name, firstName, lastName1, lastName2, phone: '', photo: null, consent: null, guardian,
       groupIds, planId, status: kind === 'b' ? 'baja' : 'activo', notes, createdAt: joined,
     });
 

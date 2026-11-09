@@ -680,3 +680,9 @@ main {
   .disc-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
   .disc-tile { min-height: 200px; }
 }
+
+/* --- Padre, madre o tutor --- */
+
+.guardian { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
+.guardian-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: var(--info-bg); }
+.guardian-card .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }

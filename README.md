@@ -29,7 +29,11 @@ quien no ha venido no debe nada. Cada mes empieza de cero.
 
 Nombre, primer y segundo apellido, teléfono y una **foto hecha con la cámara de la tablet** dentro de la app.
 Debajo, el texto de protección de datos (RGPD y LOPDGDD), la casilla **Autorizo** y un recuadro para
-**firmar con el dedo**. Si el alumno tiene menos de 14 años firma su padre, madre o tutor (se pide su nombre).
+**firmar con el dedo**.
+
+Si el alumno es **menor de edad** (se marca «¿Es menor de edad? Sí»; al apuntarle a una clase Kids se marca
+solo), en su misma ficha se guardan los datos de su madre, padre o tutor legal: nombre y teléfono. Entonces
+el teléfono del alumno es opcional y la autorización la firma el tutor. No hay fichas de padres aparte.
 
 Con cada alta se guarda el texto aceptado, la firma, quién firma y la fecha y hora. Se consulta en la
 ficha del alumno → *Protección de datos firmada… → Ver*. Los alumnos que aún no han firmado salen en
