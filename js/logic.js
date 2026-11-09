@@ -209,26 +209,35 @@ export function disciplineReport(month) {
   const s = getState();
   const groupDisc = new Map(s.groups.map((g) => [g.id, g.disciplineId]));
   const rep = new Map(billableDisciplines().map((d) => [d.id, { disc: d, rows: [], cobrado: 0, pendiente: 0 }]));
-  const add = (map) => map.forEach((v, d) => { if (rep.has(d)) rep.get(d).cobrado += v; });
 
   for (const st of s.students) {
+    // Cada fila guarda también lo que ha pagado y lo que debe ese alumno en esa disciplina,
+    // para poder sumar el dinero por clase (Gi, Kids…).
+    const mine = new Map();
+    const add = (map) => map.forEach((v, d) => {
+      if (!rep.has(d)) return;
+      rep.get(d).cobrado += v;
+      if (mine.has(d)) mine.get(d).paid += v;
+    });
     const an = analysisFor(st.id);
     const cov = an.monthCov.get(month) || new Set();
     const atts = an.atts.filter((a) => a.date.startsWith(month) && a.cover !== 'libre');
     const plan = find('plans', st.planId);
     for (const r of rep.values()) {
       const d = r.disc.id;
-      const mine = atts.filter((a) => a.disc === d);
+      const here = atts.filter((a) => a.disc === d);
       let code = null;
-      if (mine.some((a) => !a.cover)) code = 'cobrar';
+      if (here.some((a) => !a.cover)) code = 'cobrar';
       else if (cov.has(d)) code = 'pagado';
-      else if (mine.length) code = 'bono';
+      else if (here.length) code = 'bono';
       else if (st.status === 'activo' && st.groupIds.some((g) => groupDisc.get(g) === d)) code = 'sin';
       if (!code) continue;
-      r.rows.push({ st, code, days: new Set(mine.map((a) => a.date)).size, groupIds: [...new Set(mine.map((a) => a.groupId))] });
-      if (code === 'cobrar') {
-        r.pendiente += plan?.disciplineIds.includes(d) ? splitAmount(plan.price, plan.disciplineIds).get(d) || 0 : basePrice(d);
-      }
+      const owe = code !== 'cobrar' ? 0
+        : plan?.disciplineIds.includes(d) ? splitAmount(plan.price, plan.disciplineIds).get(d) || 0 : basePrice(d);
+      const row = { st, code, days: new Set(here.map((a) => a.date)).size, groupIds: [...new Set(here.map((a) => a.groupId))], owe, paid: 0 };
+      r.rows.push(row);
+      mine.set(d, row);
+      r.pendiente += owe;
     }
     (an.monthPays.get(month) || []).forEach((p) => add(splitAmount(p.amount, p.disciplineIds)));
     an.bonos

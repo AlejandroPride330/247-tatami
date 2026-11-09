@@ -15,10 +15,8 @@ export function load() {
   } catch {
     state = null;
   }
-  if (!isValid(state)) {
-    state = createSeed();
-    persist();
-  }
+  if (!isValid(state)) state = createSeed();
+  persist(); // guarda también lo que haya cambiado al migrar
   return state;
 }
 
@@ -81,6 +79,18 @@ export function migrate(s) {
   if (s.version === 3) fromV3(s);
   // Datos del padre, madre o tutor dentro de la ficha (menores). Si ya firmó un tutor, se aprovecha su nombre.
   if (s.version === DATA_VERSION) {
+    // Las clases de BJJ pasan a llamarse Gi masculino y Gi femenino (solo si no se habían renombrado).
+    s.patches = s.patches || [];
+    if (!s.patches.includes('bjj-clases')) {
+      const rename = { g_bjj_gi: ['Gi', 'Gi masculino'], g_bjj_fem: ['Femenino', 'Gi femenino'] };
+      s.groups?.forEach((g) => { if (rename[g.id] && g.name === rename[g.id][0]) g.name = rename[g.id][1]; });
+      // Y se ordenan: Gi masculino, Gi femenino, Kids 1, Kids 2.
+      const order = ['g_bjj_gi', 'g_bjj_fem', 'g_kids1', 'g_kids2'];
+      const slots = s.groups.map((g, i) => (order.includes(g.id) ? i : -1)).filter((i) => i >= 0);
+      const sorted = slots.map((i) => s.groups[i]).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+      slots.forEach((i, k) => { s.groups[i] = sorted[k]; });
+      s.patches.push('bjj-clases');
+    }
     s.students?.forEach((st) => {
       if (st.guardian !== undefined) return;
       st.guardian = st.consent?.signer === 'tutor' ? { name: st.consent.signerName || '', relation: st.consent.relation || 'tutor', phone: '' } : null;

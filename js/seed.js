@@ -73,10 +73,10 @@ const GUARDIANS = {
 // Horario de 247 Studio. day: 0 = domingo … 6 = sábado
 const S = (day, start, end) => ({ day, start, end });
 const GROUPS = [
+  { id: 'g_bjj_gi', disciplineId: 'd_bjj', name: 'Gi masculino', sessions: [S(1, '10:00', '11:30'), S(1, '19:30', '20:30'), S(3, '19:30', '20:30'), S(3, '20:30', '21:30')] },
+  { id: 'g_bjj_fem', disciplineId: 'd_bjj', name: 'Gi femenino', sessions: [S(2, '18:30', '19:30'), S(4, '18:30', '19:30')] },
   { id: 'g_kids1', disciplineId: 'd_bjj', name: 'Kids 1 (+7 años)', sessions: [S(1, '17:30', '18:30'), S(3, '17:30', '18:30'), S(5, '17:30', '18:30')] },
   { id: 'g_kids2', disciplineId: 'd_bjj', name: 'Kids 2 (3 a 6 años)', sessions: [S(2, '17:30', '18:30'), S(4, '17:30', '18:30')] },
-  { id: 'g_bjj_gi', disciplineId: 'd_bjj', name: 'Gi', sessions: [S(1, '10:00', '11:30'), S(1, '19:30', '20:30'), S(3, '19:30', '20:30'), S(3, '20:30', '21:30')] },
-  { id: 'g_bjj_fem', disciplineId: 'd_bjj', name: 'Femenino', sessions: [S(2, '18:30', '19:30'), S(4, '18:30', '19:30')] },
   { id: 'g_mma', disciplineId: 'd_mma', name: '', sessions: [S(1, '18:30', '19:30'), S(3, '18:30', '19:30'), S(5, '18:30', '19:30')] },
   { id: 'g_grap', disciplineId: 'd_grap', name: '', sessions: [S(1, '20:30', '21:30'), S(2, '19:30', '20:30'), S(3, '10:00', '11:30'), S(4, '19:30', '20:30'), S(5, '10:00', '11:30')] },
   { id: 'g_lucha', disciplineId: 'd_lucha', name: '', sessions: [S(2, '20:30', '21:30'), S(4, '20:30', '21:30')] },
@@ -215,6 +215,7 @@ export function createSeed() {
     gymName: '247 Studio',
     // Datos del responsable para el texto de protección de datos (se rellenan en Ajustes).
     privacy: { holder: '', contact: '' },
+    patches: ['bjj-clases'],
     disciplines,
     groups,
     plans,

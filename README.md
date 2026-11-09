@@ -19,8 +19,10 @@ quien no ha venido no debe nada. Cada mes empieza de cero.
 
 - **Lista**: muestra el horario del día y se abre en la clase en curso (o la siguiente).
   Se tocan los presentes. Las clases de otros días están en "Otra clase".
-- **Disciplinas**: una tarjeta sencilla por disciplina (icono y nombre). Al entrar salen arriba los
-  recuadros del mes (por cobrar, pagados, con bono, sin venir) y el dinero, y debajo los alumnos con su foto.
+- **Disciplinas**: una tarjeta sencilla por disciplina (icono y nombre). Si tiene varias clases, al entrar
+  sale una tarjeta por clase (BJJ: Gi masculino, Gi femenino, Kids 1 y Kids 2, más «Todo BJJ»), cada una con
+  su propio listado. Dentro salen arriba los recuadros del mes (por cobrar, pagados, con bono, sin venir) y
+  el dinero, y debajo los alumnos con su foto.
 - **Alumnos**: alta, ficha, historial de cobros y asistencias, anular cobros (nunca se borran).
 - **Caja**: efectivo del mes por tarifa y movimientos día a día.
 - **Ajustes**: disciplinas (con su icono), clases con su horario, tarifas, datos de protección de datos y copias de seguridad.

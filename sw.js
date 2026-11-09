@@ -1,6 +1,6 @@
 // Service worker: guarda la app para que abra sin cobertura.
 // Primero intenta la red (para recibir actualizaciones) y, si falla, usa la copia guardada.
-const CACHE = 'tatami-v3';
+const CACHE = 'tatami-v4';
 const ASSETS = [
   './',
   'index.html',
@@ -42,7 +42,8 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
   event.respondWith(
-    fetch(request)
+    // no-cache: pregunta siempre al servidor si hay versión nueva (si no la hay, no descarga nada).
+    fetch(request, { cache: 'no-cache' })
       .then((response) => {
         const copy = response.clone();
         caches.open(CACHE).then((c) => c.put(request, copy));
