@@ -1,10 +1,10 @@
 // Pestaña "Lista": el profesor marca quién ha venido a la clase.
 // Se abre en la clase que toca según el horario (la que está en curso o la siguiente).
 // Marcar asistencia activa al alumno ese mes y, si tiene bono, le descuenta el día.
-import { getState, update, currentOwner, find } from '../store.js';
+import { getState, update, find } from '../store.js';
 import { monthStatus, activeGroups, daySchedule, currentSlot, groupLabel, studentGroupsText, disciplineColor, isFree } from '../logic.js';
 import { esc, todayISO, nowHM, addDays, dayLabel, monthOf, normalize, byName, uid } from '../util.js';
-import { openSheet, toast, badge, dot, empty, requestRender } from '../ui.js';
+import { openSheet, toast, badge, dot, empty, avatar, requestRender } from '../ui.js';
 import { openCobrar } from './cobrar.js';
 import { openEditStudent } from './alumnos.js';
 
@@ -40,7 +40,7 @@ function toggle(studentId) {
     if (s.attendance.some((a) => isPresent(a, studentId))) {
       s.attendance = s.attendance.filter((a) => !isPresent(a, studentId));
     } else {
-      s.attendance.push({ id: uid('att'), studentId, groupId: ui.groupId, date: ui.date, by: currentOwner().id });
+      s.attendance.push({ id: uid('att'), studentId, groupId: ui.groupId, date: ui.date });
       const st = s.students.find((x) => x.id === studentId);
       if (st.status === 'baja') st.status = 'activo';
     }
@@ -97,6 +97,7 @@ export function render() {
         return `
         <div class="row att ${on ? 'on' : ''}" role="button" tabindex="0" aria-pressed="${on}" data-sid="${st.id}">
           <span class="check" aria-hidden="true">${on ? '✓' : ''}</span>
+          ${avatar(st)}
           <span class="grow"><span class="name">${esc(st.name)}</span>${st.groupIds.includes(ui.groupId) ? '' : '<span class="sub">Invitado de otra clase</span>'}</span>
           ${badge(ms)}
           ${ms.code === 'cobrar' ? `<button type="button" class="mini-btn bad" data-cobrar="${st.id}" aria-label="Cobrar a ${esc(st.name)}">€</button>` : ''}
@@ -140,6 +141,7 @@ function openAdd() {
       .slice(0, 60);
     return list.map((s) => `
       <div class="row" role="button" tabindex="0" data-pick="${s.id}">
+        ${avatar(s)}
         <span class="grow"><span class="name">${esc(s.name)}</span><span class="sub">${esc(studentGroupsText(s))}</span></span>
         ${s.status === 'baja' ? '<span class="tag">Baja</span>' : ''}
       </div>`).join('') || '<p class="hint">Nadie con ese nombre. Puedes crearlo abajo.</p>';

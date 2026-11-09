@@ -1,12 +1,13 @@
-// Pestaña "Ajustes": todo lo configurable por el gimnasio (disciplinas, clases, tarifas, socios).
+// Pestaña "Ajustes": todo lo configurable por el gimnasio (disciplinas, clases, tarifas, datos).
 // Nada se borra si tiene historial: se archiva, para no alterar cobros ni asistencias pasadas.
-import { getState, update, replace, find, isValid } from '../store.js';
+import { getState, update, replace, find, isValid, migrate, defaultIcon } from '../store.js';
 import { planSummary, groupLabel } from '../logic.js';
 import { createSeed } from '../seed.js';
 import { esc, eur, todayISO, scheduleText, WEEK, uid } from '../util.js';
 import { openSheet, confirmSheet, toast, dot } from '../ui.js';
 
 const COLORS = ['#b91c1c', '#1d4ed8', '#15803d', '#a16207', '#7c3aed', '#0e7490', '#be185d', '#4b5563'];
+const ICONS = ['🥋', '🤼', '🥊', '💪', '🦵', '👊', '🏆', '🤸', '🧘', '🏋️', '🔥', '⚡', '🐍', '🐯', '🧒', '⭐'];
 
 export function render() {
   const s = getState();
@@ -17,11 +18,14 @@ export function render() {
     </section>
 
     <section class="card">
-      <h3 class="card-title">Socios que cobran</h3>
-      ${s.owners.map((o) => `
-        <label class="field inline"><span>${o.id === s.currentOwnerId ? '👤' : ''}</span><input type="text" data-owner="${o.id}" value="${esc(o.name)}"></label>`).join('')}
-      <button type="button" class="btn btn-small" data-act="add-owner">+ Añadir socio</button>
+      <h3 class="card-title">Protección de datos</h3>
+      <p class="hint">Salen en la autorización que firma cada alumno al darse de alta. Las autorizaciones ya firmadas no cambian.</p>
+      <label class="field"><span>Responsable de los datos (titular y NIF/CIF)</span>
+        <input type="text" data-privacy="holder" value="${esc(s.privacy?.holder || '')}" placeholder="${esc(s.gymName)}"></label>
+      <label class="field"><span>Dónde ejercer los derechos (email o dirección)</span>
+        <input type="text" data-privacy="contact" value="${esc(s.privacy?.contact || '')}" placeholder="en la recepción del gimnasio"></label>
     </section>
+
 
     <section class="card">
       <h3 class="card-title">Disciplinas y clases</h3>
@@ -30,7 +34,7 @@ export function render() {
         return `
         <div class="disc ${d.archived ? 'archived' : ''}">
           <div class="disc-head" role="button" tabindex="0" data-disc="${d.id}">
-            ${dot(d.color)}<strong>${esc(d.name)}</strong>${d.free ? '<span class="tag">Libre · no se cobra</span>' : ''}${d.archived ? '<span class="tag">Archivada</span>' : ''}<span class="edit">Editar</span>
+            <span class="disc-icon xs" style="--c:${esc(d.color)}" aria-hidden="true">${esc(d.icon || defaultIcon(d.name))}</span><strong>${esc(d.name)}</strong>${d.free ? '<span class="tag">Libre · no se cobra</span>' : ''}${d.archived ? '<span class="tag">Archivada</span>' : ''}<span class="edit">Editar</span>
           </div>
           ${groups.map((g) => `
             <div class="row compact ${g.archived ? 'archived' : ''}" role="button" tabindex="0" data-group="${g.id}">
@@ -57,7 +61,7 @@ export function render() {
 
     <section class="card">
       <h3 class="card-title">Datos</h3>
-      <p class="hint">En esta demo los datos se guardan solo en este móvil.</p>
+      <p class="hint">En esta demo los datos se guardan solo en esta tablet. Haz copias de seguridad de vez en cuando.</p>
       <div class="stack">
         <button type="button" class="btn" data-act="export">Descargar copia de seguridad</button>
         <label class="btn">Restaurar una copia<input type="file" accept="application/json,.json" data-import hidden></label>
@@ -76,9 +80,9 @@ export function bind(root) {
       update((s) => { s.gymName = t.value.trim() || 'Mi gimnasio'; });
       toast('Nombre guardado');
     }
-    if (t.dataset.owner) {
-      update((s) => { s.owners.find((o) => o.id === t.dataset.owner).name = t.value.trim() || 'Socio'; });
-      toast('Socio guardado');
+    if (t.dataset.privacy) {
+      update((s) => { s.privacy = { ...(s.privacy || {}), [t.dataset.privacy]: t.value.trim() }; });
+      toast('Guardado');
     }
     if (t.matches('[data-import]') && t.files[0]) importBackup(t.files[0]);
   };
@@ -92,7 +96,6 @@ export function bind(root) {
     else if (el.dataset.plan) editPlan(el.dataset.plan);
     else if (act === 'new-disc') editDiscipline(null);
     else if (act === 'new-plan') editPlan(null);
-    else if (act === 'add-owner') update((s) => { s.owners.push({ id: uid('own'), name: `Socio ${s.owners.length + 1}` }); });
     else if (act === 'export') exportBackup();
     else if (act === 'reset') {
       if (await confirmSheet({ title: 'Datos de ejemplo', message: 'Se borrará todo lo que hayas apuntado y se cargarán de nuevo los alumnos de ejemplo.', confirmLabel: 'Cargar ejemplo', danger: true })) {
@@ -100,7 +103,7 @@ export function bind(root) {
         toast('Datos de ejemplo cargados');
       }
     } else if (act === 'wipe') {
-      if (await confirmSheet({ title: 'Empezar de cero', message: 'Se borrarán los alumnos, asistencias y cobros. Se mantienen las disciplinas, clases, tarifas y socios.', confirmLabel: 'Vaciar', danger: true })) {
+      if (await confirmSheet({ title: 'Empezar de cero', message: 'Se borrarán los alumnos, asistencias y cobros. Se mantienen las disciplinas, clases y tarifas.', confirmLabel: 'Vaciar', danger: true })) {
         update((s) => { s.students = []; s.attendance = []; s.payments = []; });
         toast('Listo para datos reales');
       }
@@ -121,7 +124,7 @@ function exportBackup() {
 
 async function importBackup(file) {
   let data = null;
-  try { data = JSON.parse(await file.text()); } catch { /* se valida abajo */ }
+  try { data = migrate(JSON.parse(await file.text())); } catch { /* se valida abajo */ }
   if (!isValid(data)) { toast('Ese archivo no es una copia válida'); return; }
   if (await confirmSheet({ title: 'Restaurar copia', message: `Se sustituirán los datos actuales por la copia (${data.students.length} alumnos).`, confirmLabel: 'Restaurar', danger: true })) {
     replace(data);
@@ -133,11 +136,13 @@ async function importBackup(file) {
 
 function editDiscipline(id) {
   const d = id ? find('disciplines', id) : null;
-  const f = { name: d?.name || '', color: d?.color || COLORS[getState().disciplines.length % COLORS.length], free: !!d?.free };
+  const f = { name: d?.name || '', icon: d?.icon || (d ? defaultIcon(d.name) : ICONS[0]), color: d?.color || COLORS[getState().disciplines.length % COLORS.length], free: !!d?.free };
   openSheet({
     title: d ? 'Editar disciplina' : 'Nueva disciplina',
     render: () => `
       <label class="field"><span>Nombre</span><input type="text" data-f="name" value="${esc(f.name)}" placeholder="Ej.: Judo"></label>
+      <div class="field"><span>Icono</span><div class="icon-pick">${ICONS.map((i) => `
+        <button type="button" class="icon-opt ${i === f.icon ? 'on' : ''}" data-icon="${i}" aria-label="Icono ${i}">${i}</button>`).join('')}</div></div>
       <div class="field"><span>Color</span><div class="swatches">${COLORS.map((c) => `
         <button type="button" class="swatch ${c === f.color ? 'on' : ''}" style="background:${c}" data-color="${c}" aria-label="Color ${c}"></button>`).join('')}</div></div>
       <label class="check-line"><input type="checkbox" data-f="free" ${f.free ? 'checked' : ''}> Libre: se pasa lista pero no se cobra (Open Mat, Comp Class…)</label>
@@ -150,14 +155,16 @@ function editDiscipline(id) {
         f.free = body.querySelector('[data-f="free"]').checked;
         const color = e.target.closest('[data-color]')?.dataset.color;
         if (color) { f.color = color; api.refresh(); return; }
+        const icon = e.target.closest('[data-icon]')?.dataset.icon;
+        if (icon) { f.icon = icon; api.refresh(); return; }
         const act = e.target.closest('[data-act]')?.dataset.act;
         if (act === 'save') {
           if (!f.name.trim()) { toast('Escribe el nombre'); return; }
           update((s) => {
-            if (d) Object.assign(s.disciplines.find((x) => x.id === id), { name: f.name.trim(), color: f.color, free: f.free });
+            if (d) Object.assign(s.disciplines.find((x) => x.id === id), { name: f.name.trim(), icon: f.icon, color: f.color, free: f.free });
             else {
               const did = uid('dis');
-              s.disciplines.push({ id: did, name: f.name.trim(), color: f.color, free: f.free, archived: false });
+              s.disciplines.push({ id: did, name: f.name.trim(), icon: f.icon, color: f.color, free: f.free, archived: false });
               s.groups.push({ id: uid('grp'), disciplineId: did, name: '', sessions: [], archived: false });
             }
           });

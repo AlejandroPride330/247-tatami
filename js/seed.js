@@ -80,20 +80,13 @@ export function createSeed() {
   let counter = 0;
   const id = (p) => `${p}_${++counter}`;
 
-  const owners = [
-    { id: 'o1', name: 'Socio 1' },
-    { id: 'o2', name: 'Socio 2' },
-    { id: 'o3', name: 'Socio 3' },
-  ];
-  const ownerId = () => owners[Math.floor(rnd() * owners.length)].id;
-
   const disciplines = [
-    { id: 'd_bjj', name: 'BJJ', color: '#b91c1c', archived: false },
-    { id: 'd_lucha', name: 'Lucha', color: '#1d4ed8', archived: false },
-    { id: 'd_mma', name: 'MMA', color: '#15803d', archived: false },
-    { id: 'd_grap', name: 'Grappling', color: '#a16207', archived: false },
-    { id: 'd_comp', name: 'Comp Class', color: '#7c3aed', archived: false, free: true },
-    { id: 'd_open', name: 'Open Mat', color: '#4b5563', archived: false, free: true },
+    { id: 'd_bjj', name: 'BJJ', icon: '🥋', color: '#b91c1c', archived: false },
+    { id: 'd_lucha', name: 'Lucha', icon: '🤼', color: '#1d4ed8', archived: false },
+    { id: 'd_mma', name: 'MMA', icon: '🥊', color: '#15803d', archived: false },
+    { id: 'd_grap', name: 'Grappling', icon: '💪', color: '#a16207', archived: false },
+    { id: 'd_comp', name: 'Comp Class', icon: '🏆', color: '#7c3aed', archived: false, free: true },
+    { id: 'd_open', name: 'Open Mat', icon: '🤸', color: '#4b5563', archived: false, free: true },
   ];
   const groups = GROUPS.map((g) => ({ archived: false, ...g, sessions: g.sessions.map((s) => ({ ...s })) }));
   // Comp Class y Open Mat son libres: ninguna tarifa las incluye.
@@ -137,7 +130,6 @@ export function createSeed() {
     disciplineIds: [...plan.disciplineIds],
     amount: plan.price,
     date,
-    by: ownerId(),
     voided: false,
     voidReason: '',
     createdAt: counter,
@@ -152,7 +144,12 @@ export function createSeed() {
     });
     if (kind === 'i' && !months.some((m) => active[m])) active[months[1]] = true;
     const joined = kind === 'n' ? `${months[1]}-0${1 + Math.floor(rnd() * 8)}` : addDays(start, -30 - Math.floor(rnd() * 400));
-    students.push({ id: sid, name, phone: '', groupIds, planId, status: kind === 'b' ? 'baja' : 'activo', notes, createdAt: joined });
+    const [firstName, lastName1 = '', lastName2 = ''] = name.split(' ');
+    // Los alumnos de ejemplo no tienen foto ni firma: así se ve cómo queda un alta pendiente.
+    students.push({
+      id: sid, name, firstName, lastName1, lastName2, phone: '', photo: null, consent: null,
+      groupIds, planId, status: kind === 'b' ? 'baja' : 'activo', notes, createdAt: joined,
+    });
 
     const mine = [];
     for (const d of dates) {
@@ -162,7 +159,7 @@ export function createSeed() {
         // Hoy solo cuentan las clases que ya han empezado.
         const hasClass = groupById[gid].sessions.some((s) => s.day === wd && (d < today || s.start <= now));
         if (hasClass && rnd() < rate) {
-          const a = { id: id('att'), studentId: sid, groupId: gid, date: d, by: ownerId() };
+          const a = { id: id('att'), studentId: sid, groupId: gid, date: d };
           attendance.push(a);
           mine.push(a);
         }
@@ -197,13 +194,13 @@ export function createSeed() {
 
   // Un ejemplo de cobro anulado por duplicado, para enseñar cómo queda el registro.
   const dup = payments.find((p) => p.month === months[1]);
-  if (dup) payments.push({ ...dup, id: id('pay'), by: 'o2', voided: true, voidReason: 'Duplicado: ya estaba cobrado', voidedBy: 'o2', voidedAt: dup.date, createdAt: counter });
+  if (dup) payments.push({ ...dup, id: id('pay'), voided: true, voidReason: 'Duplicado: ya estaba cobrado', voidedAt: dup.date, createdAt: counter });
 
   return {
     version: DATA_VERSION,
     gymName: '247 Studio',
-    currentOwnerId: 'o1',
-    owners,
+    // Datos del responsable para el texto de protección de datos (se rellenan en Ajustes).
+    privacy: { holder: '', contact: '' },
     disciplines,
     groups,
     plans,

@@ -1,10 +1,10 @@
-// Pestaña "Cobros": quién ha venido este mes y aún no ha pagado, separado por disciplinas
-// (alguna se subcontrata y conviene ver la gente y el dinero de cada una por separado).
+// Pestaña "Disciplinas": una tarjeta por disciplina. Al entrar se ve quién ha pagado y quién debe
+// este mes (alguna se subcontrata y conviene ver la gente y el dinero de cada una por separado).
 // Las disciplinas libres (Open Mat, Comp Class…) no salen: no se cobran.
-import { getState, find } from '../store.js';
+import { getState, find, defaultIcon } from '../store.js';
 import { STATUS, monthStatus, disciplineReport, activeDisciplines, studentGroupsText, expectedAmount } from '../logic.js';
 import { esc, eur, todayISO, monthOf, addMonths, monthLabel, byName } from '../util.js';
-import { badge, dot, empty, monthNav, requestRender } from '../ui.js';
+import { badge, empty, avatar, monthNav, requestRender } from '../ui.js';
 import { openCobrar } from './cobrar.js';
 import { openFicha } from './alumnos.js';
 
@@ -41,43 +41,21 @@ const moneyCard = (cobrado, pendiente, nPending) => `
       <span class="sub">${people(nPending)}</span></div>
   </div>`;
 
+// Portada: una tarjeta sencilla por disciplina (icono y nombre). Los números salen al entrar.
 function renderSummary(report) {
   const freeNames = activeDisciplines().filter((d) => d.free).map((d) => d.name);
-  const cobrado = report.reduce((sum, r) => sum + r.cobrado, 0);
-  const pendiente = report.reduce((sum, r) => sum + r.pendiente, 0);
-  const nPending = allRows().filter((r) => r.code === 'cobrar').length;
-
-  const card = (r) => {
-    const active = r.rows.filter((x) => x.code !== 'sin');
-    const [pag, bono, cob, sin] = ['pagado', 'bono', 'cobrar', 'sin'].map((c) => count(r.rows, c));
-    return `
-      <button type="button" class="disc-card" data-disc="${r.disc.id}">
-        <span class="disc-card-head">${dot(r.disc.color)}<strong>${esc(r.disc.name)}</strong>
-          <span class="sub">${people(active.length)}</span><span class="chev" aria-hidden="true">›</span></span>
-        <span class="bar" aria-hidden="true">
-          <i class="bar-pagado" style="flex:${pag}"></i><i class="bar-bono" style="flex:${bono}"></i><i class="bar-cobrar" style="flex:${cob}"></i>
-        </span>
-        <span class="disc-card-counts">
-          <span class="c-ok">${pag} ${pag === 1 ? 'pagado' : 'pagados'}</span>${bono ? ` · <span class="c-info">${bono} con bono</span>` : ''} · <span class="c-bad">${cob} por cobrar</span>
-          ${sin ? `<span class="sub"> · ${sin} sin venir</span>` : ''}
-        </span>
-        <span class="disc-money">
-          <span><span class="sub">Cobrado</span> <strong>${cents(r.cobrado)}</strong></span>
-          <span><span class="sub">Por cobrar</span> <strong class="c-bad">${r.pendiente ? `≈ ${eur(Math.round(r.pendiente))}` : '0 €'}</strong></span>
-        </span>
-      </button>`;
-  };
-
+  const card = (id, icon, name, color) => `
+    <button type="button" class="disc-tile" data-disc="${id}" style="--c:${esc(color)}">
+      <span class="disc-icon" aria-hidden="true">${esc(icon)}</span>
+      <span class="disc-name">${esc(name)}</span>
+    </button>`;
   return `
-    ${monthNav(monthLabel(ui.month), { canNext: ui.month < addMonths(monthOf(todayISO()), 1) })}
-    ${moneyCard(cobrado, pendiente, nPending)}
-    <button type="button" class="btn btn-block" data-disc="all">Ver todos los pendientes (${nPending})</button>
-    <h3 class="section-title">Por disciplina</h3>
-    ${report.map(card).join('') || empty('No hay disciplinas que se cobren', 'Créalas en Ajustes.')}
-    <p class="hint">
-      ${freeNames.length ? `${esc(freeNames.join(' y '))} ${freeNames.length === 1 ? 'es libre' : 'son libres'}: no se cobran y no salen aquí. ` : ''}
-      Las tarifas combinadas se reparten entre sus disciplinas según el precio de cada una por separado.
-    </p>
+    <div class="disc-grid">
+      ${report.map((r) => card(r.disc.id, r.disc.icon || defaultIcon(r.disc.name), r.disc.name, r.disc.color)).join('')}
+      ${report.length ? card('all', '👥', 'Todos los alumnos', '#78716c') : ''}
+    </div>
+    ${report.length ? '' : empty('No hay disciplinas que se cobren', 'Créalas en Ajustes.')}
+    ${freeNames.length ? `<p class="hint">${esc(freeNames.join(' y '))} ${freeNames.length === 1 ? 'es libre' : 'son libres'}: se pasa lista, pero no se cobran y no salen aquí.</p>` : ''}
     <button type="button" class="fab" data-act="cobrar-any" aria-label="Cobrar a cualquier alumno">+ Cobrar</button>`;
 }
 
@@ -107,21 +85,22 @@ function renderDetail(report) {
   return `
     <div class="detail-head">
       <button type="button" class="btn btn-small btn-ghost back-btn" data-act="back">‹ Disciplinas</button>
-      <h2>${r ? `${dot(r.disc.color)}${esc(r.disc.name)}` : 'Todas las disciplinas'}</h2>
+      <h2>${r ? `<span class="disc-icon sm" style="--c:${esc(r.disc.color)}" aria-hidden="true">${esc(r.disc.icon || defaultIcon(r.disc.name))}</span>${esc(r.disc.name)}` : 'Todos los alumnos'}</h2>
     </div>
     ${monthNav(monthLabel(ui.month), { canNext: ui.month < addMonths(monthOf(todayISO()), 1) })}
-    ${moneyCard(cobrado, pendiente, count(rows, 'cobrar'))}
     <div class="tiles">
       ${tile('cobrar', 'Por cobrar')}
       ${tile('pagado', 'Pagados')}
       ${tile('bono', 'Con bono')}
       ${tile('sin', 'Sin venir')}
     </div>
+    ${moneyCard(cobrado, pendiente, count(rows, 'cobrar'))}
     ${groupsLine ? `<p class="hint">Han venido por clase: ${groupsLine}</p>` : ''}
     ${ui.filter === 'sin' ? '<p class="hint">Apuntados que no han venido este mes: no se les reclama nada.</p>' : ''}
     <div class="list">
       ${list.map((x) => `
         <div class="row" role="button" tabindex="0" data-sid="${x.st.id}">
+          ${avatar(x.st)}
           <span class="grow">
             <span class="name">${esc(x.st.name)}</span>
             <span class="sub">${esc(x.sub)}${x.days ? ` · ${x.days} ${x.days === 1 ? 'día' : 'días'}` : ''}</span>

@@ -1,6 +1,6 @@
 // Service worker: guarda la app para que abra sin cobertura.
 // Primero intenta la red (para recibir actualizaciones) y, si falla, usa la copia guardada.
-const CACHE = 'tatami-v2';
+const CACHE = 'tatami-v3';
 const ASSETS = [
   './',
   'index.html',
@@ -12,8 +12,10 @@ const ASSETS = [
   'js/seed.js',
   'js/ui.js',
   'js/util.js',
+  'js/media.js',
+  'js/privacy.js',
   'js/views/lista.js',
-  'js/views/cobros.js',
+  'js/views/disciplinas.js',
   'js/views/cobrar.js',
   'js/views/alumnos.js',
   'js/views/caja.js',

@@ -1,8 +1,8 @@
 // Hoja "Cobrar": registrar una cuota mensual (uno o varios meses) o un bono.
-import { getState, update, find, currentOwner } from '../store.js';
+import { getState, update, find } from '../store.js';
 import { analysisFor, activeBono, activePlans, studentGroupsText, planSummary } from '../logic.js';
 import { esc, eur, todayISO, monthOf, addMonths, monthShort, monthName, addDays, shortDate, normalize, byName, uid } from '../util.js';
-import { openSheet, promptSheet, toast } from '../ui.js';
+import { openSheet, promptSheet, toast, avatar } from '../ui.js';
 
 export function openCobrar({ studentId = null, month = null } = {}) {
   const today = todayISO();
@@ -39,8 +39,8 @@ export function openCobrar({ studentId = null, month = null } = {}) {
       for (const m of [...f.months].sort()) {
         if (!coversMonth(m)) continue;
         const prev = analysisFor(f.sid).monthPays.get(m) || [];
-        const who = prev.map((x) => `${find('owners', x.by)?.name || '¿?'} el ${shortDate(x.date)}`).join(', ');
-        out.push(`${monthName(m)} ya está pagado (${who}).`);
+        const when = prev.map((x) => shortDate(x.date)).join(', ');
+        out.push(`${monthName(m)} ya está pagado (cobrado el ${when}).`);
       }
     } else {
       const b = activeBono(f.sid, f.bonoStart);
@@ -61,6 +61,7 @@ export function openCobrar({ studentId = null, month = null } = {}) {
       <input type="search" class="search" data-q placeholder="Buscar alumno…" value="${esc(f.q)}" autocomplete="off">
       <div class="list" data-results>${list.map((s) => `
         <div class="row" role="button" tabindex="0" data-pick="${s.id}">
+          ${avatar(s)}
           <span class="grow"><span class="name">${esc(s.name)}</span><span class="sub">${esc(studentGroupsText(s))}</span></span>
           ${s.status === 'baja' ? '<span class="tag">Baja</span>' : ''}
         </div>`).join('') || '<p class="hint">Nadie con ese nombre.</p>'}</div>`;
@@ -70,12 +71,12 @@ export function openCobrar({ studentId = null, month = null } = {}) {
     const st = student();
     const p = plan();
     const plans = activePlans();
-    const owner = currentOwner();
     const warn = warnings();
     const opt = (x) => `<option value="${x.id}" ${x.id === f.planId ? 'selected' : ''}>${esc(x.name)} · ${eur(x.price)}</option>`;
     return `
       <div class="who">
-        <div><div class="name">${esc(st.name)}</div><div class="sub">${esc(studentGroupsText(st))}</div></div>
+        ${avatar(st)}
+        <div class="grow"><div class="name">${esc(st.name)}</div><div class="sub">${esc(studentGroupsText(st))}</div></div>
         ${studentId ? '' : '<button type="button" class="btn btn-small" data-act="change">Cambiar</button>'}
       </div>
 
@@ -109,7 +110,7 @@ export function openCobrar({ studentId = null, month = null } = {}) {
 
       ${warn.map((w) => `<p class="warn">⚠️ ${esc(w)}</p>`).join('')}
 
-      <p class="hint">Cobra: <strong>${esc(owner.name)}</strong> · en efectivo</p>
+      <p class="hint">Pago en efectivo · ${shortDate(today)}</p>
       <button type="button" class="btn btn-primary btn-block" data-act="save" ${p ? '' : 'disabled'}>
         Cobrar <span data-total>${eur(total())}</span>
       </button>`;
@@ -168,7 +169,6 @@ export function openCobrar({ studentId = null, month = null } = {}) {
     const st = student();
     if (!p) return;
     if (p.type === 'mensual' && !f.months.size) { toast('Elige al menos un mes'); return; }
-    const by = currentOwner().id;
     const base = {
       studentId: st.id,
       planId: p.id,
@@ -177,7 +177,6 @@ export function openCobrar({ studentId = null, month = null } = {}) {
       disciplineIds: [...p.disciplineIds],
       amount: f.amount,
       date: today,
-      by,
       voided: false,
       voidReason: '',
       createdAt: Date.now(),
@@ -214,7 +213,6 @@ export async function voidPayment(paymentId) {
     const x = s.payments.find((y) => y.id === paymentId);
     x.voided = true;
     x.voidReason = reason || 'Sin motivo';
-    x.voidedBy = currentOwner().id;
     x.voidedAt = todayISO();
   });
   toast('Cobro anulado');

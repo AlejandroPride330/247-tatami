@@ -136,3 +136,13 @@ export function monthNav(label, { canNext = true } = {}) {
       <button type="button" class="icon-btn" data-act="next-month" aria-label="Mes siguiente" ${canNext ? '' : 'disabled'}>›</button>
     </div>`;
 }
+
+// Miniatura del alumno: su foto o, si aún no tiene, sus iniciales.
+export function avatar(st, cls = '') {
+  if (st?.photo && /^data:image\/(jpeg|png|webp);base64,/.test(st.photo)) {
+    return `<img class="avatar ${cls}" src="${esc(st.photo)}" alt="" loading="lazy" decoding="async">`;
+  }
+  const first = st?.firstName || st?.name || '?';
+  const initials = `${first[0] || ''}${st?.lastName1?.[0] || ''}`.toUpperCase();
+  return `<span class="avatar avatar-ph ${cls}" aria-hidden="true">${esc(initials)}</span>`;
+}

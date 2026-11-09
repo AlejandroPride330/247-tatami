@@ -1,4 +1,4 @@
-// Pestaña "Caja": el efectivo cobrado en el mes, por socio y por tarifa.
+// Pestaña "Caja": el efectivo cobrado en el mes, por tarifa y día a día.
 import { getState, find } from '../store.js';
 import { esc, eur, todayISO, monthOf, addMonths, monthLabel, monthShort, dayLabel, shortDate } from '../util.js';
 import { openSheet, empty, monthNav, requestRender } from '../ui.js';
@@ -17,7 +17,6 @@ export function render() {
     valid.forEach((p) => map.set(key(p), (map.get(key(p)) || 0) + p.amount));
     return map;
   };
-  const byOwner = sumBy((p) => p.by);
   const byPlan = [...sumBy((p) => p.planName)].sort((a, b) => b[1] - a[1]);
   const days = [...new Set(inMonth.map((p) => p.date))].sort().reverse();
 
@@ -27,11 +26,6 @@ export function render() {
       <span class="total-l">Cobrado en ${esc(monthLabel(ui.month))}</span>
       <span class="total-n">${eur(total)}</span>
       <span class="sub">${valid.length} cobros en efectivo</span>
-    </div>
-
-    <h3 class="section-title">Efectivo por socio</h3>
-    <div class="owners">${s.owners.map((o) => `
-      <div class="card owner"><span class="sub">${esc(o.name)}</span><strong>${eur(byOwner.get(o.id) || 0)}</strong></div>`).join('')}
     </div>
 
     <h3 class="section-title">Por tarifa</h3>
@@ -49,7 +43,7 @@ export function render() {
           <div class="row ${p.voided ? 'voided' : ''}" role="button" tabindex="0" data-pid="${p.id}">
             <span class="grow">
               <span class="name">${esc(find('students', p.studentId)?.name || 'Alumno eliminado')}</span>
-              <span class="sub">${esc(p.planName)} · ${p.type === 'mensual' ? monthShort(p.month) : `desde ${shortDate(p.startDate)}`} · ${esc(find('owners', p.by)?.name || '¿?')}${p.voided ? ` · Anulado: ${esc(p.voidReason)}` : ''}</span>
+              <span class="sub">${esc(p.planName)} · ${p.type === 'mensual' ? monthShort(p.month) : `desde ${shortDate(p.startDate)}`}${p.voided ? ` · Anulado: ${esc(p.voidReason)}` : ''}</span>
             </span>
             <span class="amount">${eur(p.amount)}</span>
           </div>`).join('')}
@@ -79,8 +73,8 @@ function openMovement(paymentId) {
         <div class="line"><span>Tarifa</span><strong>${esc(p.planName)}</strong></div>
         <div class="line"><span>${p.type === 'mensual' ? 'Mes' : 'Empieza'}</span><strong>${p.type === 'mensual' ? esc(monthLabel(p.month)) : shortDate(p.startDate)}</strong></div>
         <div class="line"><span>Importe</span><strong>${eur(p.amount)}</strong></div>
-        <div class="line"><span>Cobrado por</span><strong>${esc(find('owners', p.by)?.name || '—')} · ${shortDate(p.date)}</strong></div>
-        ${p.voided ? `<div class="line"><span>Anulado</span><strong>${esc(p.voidReason)}${p.voidedBy ? ` (${esc(find('owners', p.voidedBy)?.name || '')})` : ''}</strong></div>` : ''}
+        <div class="line"><span>Cobrado el</span><strong>${shortDate(p.date)}</strong></div>
+        ${p.voided ? `<div class="line"><span>Anulado</span><strong>${esc(p.voidReason)}${p.voidedAt ? ` (${shortDate(p.voidedAt)})` : ''}</strong></div>` : ''}
       </div>
       <div class="btn-row">
         <button type="button" class="btn" data-act="student">Ver alumno</button>
